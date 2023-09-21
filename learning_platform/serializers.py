@@ -2,7 +2,13 @@ from rest_framework import serializers
 from .models import Lesson, Product
 
 
-class LessonSerializer(serializers.ModelSerializer):
+class BaseLessonSerializer(serializers.ModelSerializer):
+    def get_viewing(self, obj):
+        user_viewings = self.context.get('request')._lesson_viewings_for_user
+        return user_viewings.get(obj.id)
+
+
+class LessonSerializer(BaseLessonSerializer):
     status = serializers.SerializerMethodField()
     viewing_time = serializers.SerializerMethodField()
 
@@ -15,7 +21,7 @@ class LessonSerializer(serializers.ModelSerializer):
         return viewing
 
     def get_status(self, obj):
-        viewing = self.get_viewing_data(obj)
+        viewing = self.get_viewing(obj)
         return viewing.status if viewing else "Не просмотрено"
 
     def get_viewing_time(self, obj):
@@ -23,7 +29,7 @@ class LessonSerializer(serializers.ModelSerializer):
         return viewing.viewed_duration if viewing else 0
 
 
-class ProductLessonSerializer(serializers.ModelSerializer):
+class ProductLessonSerializer(BaseLessonSerializer):
     status = serializers.SerializerMethodField()
     viewing_time = serializers.SerializerMethodField()
     last_viewed = serializers.SerializerMethodField()
@@ -37,7 +43,7 @@ class ProductLessonSerializer(serializers.ModelSerializer):
         return viewing
 
     def get_status(self, obj):
-        viewing = self.get_viewing_data(obj)
+        viewing = self.get_viewing(obj)
         return viewing.status if viewing else "Не просмотрено"
 
     def get_viewing_time(self, obj):
@@ -45,7 +51,7 @@ class ProductLessonSerializer(serializers.ModelSerializer):
         return viewing.viewed_duration if viewing else 0
 
     def get_last_viewed(self, obj):
-        viewing = next((v for v in obj.user_viewings.all() if v.user == self.context['request'].user), None)
+        viewing = self.get_viewing(obj)
         return viewing.updated_at if viewing else None
 
 
