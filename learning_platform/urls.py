@@ -8,7 +8,6 @@ router.register(r'products/(?P<product_id>\d+)/lessons', ProductLessonsViewSet, 
 router.register(r'product-statistics', ProductStatisticsViewSet, basename='product-statistics')
 
 
-
 urlpatterns = [
     path('', include(router.urls)),
 ]

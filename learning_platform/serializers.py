@@ -16,16 +16,13 @@ class LessonSerializer(BaseLessonSerializer):
         model = Lesson
         fields = ['title', 'status', 'viewing_time']
 
-    def get_viewing_data(self, obj):
-        viewing = next((v for v in obj.user_viewings.all() if v.user == self.context['request'].user), None)
-        return viewing
 
     def get_status(self, obj):
         viewing = self.get_viewing(obj)
         return viewing.status if viewing else "Не просмотрено"
 
     def get_viewing_time(self, obj):
-        viewing = self.get_viewing_data(obj)
+        viewing = self.get_viewing(obj)
         return viewing.viewed_duration if viewing else 0
 
 
@@ -38,16 +35,12 @@ class ProductLessonSerializer(BaseLessonSerializer):
         model = Lesson
         fields = ['title', 'status', 'viewing_time', 'last_viewed']
 
-    def get_viewing_data(self, obj):
-        viewing = next((v for v in obj.user_viewings.all() if v.user == self.context['request'].user), None)
-        return viewing
-
     def get_status(self, obj):
         viewing = self.get_viewing(obj)
         return viewing.status if viewing else "Не просмотрено"
 
     def get_viewing_time(self, obj):
-        viewing = self.get_viewing_data(obj)
+        viewing = self.get_viewing(obj)
         return viewing.viewed_duration if viewing else 0
 
     def get_last_viewed(self, obj):

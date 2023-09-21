@@ -1,11 +1,12 @@
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models import Prefetch, Count, Sum, F, ExpressionWrapper
+from django.db.models import Count, Sum, F, ExpressionWrapper
 from rest_framework import viewsets
 from .models import Lesson, Product, LessonViewing
 from .serializers import LessonSerializer, ProductLessonSerializer, ProductStatisticsSerializer
 from rest_framework.permissions import IsAuthenticated
 from django.core.exceptions import PermissionDenied
+from rest_framework.exceptions import ValidationError
 
 
 class LessonViewSet(viewsets.ReadOnlyModelViewSet):
@@ -16,8 +17,12 @@ class LessonViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         user = self.request.user
         product_accesses = user.product_accesses.all()
-        lesson_viewings_for_user = {viewing.lesson_id: viewing for viewing in LessonViewing.objects.filter(user=user)}
-        self.request._lesson_viewings_for_user = lesson_viewings_for_user
+        try:
+            lesson_viewings_for_user = {viewing.lesson_id: viewing for viewing in LessonViewing.objects.filter(user=user)}
+            self.request._lesson_viewings_for_user = lesson_viewings_for_user
+        except LessonViewing.DoesNotExist:
+            raise ValidationError("Ошибка при получении данных о просмотрах уроков.")
+
         return Lesson.objects.filter(products__in=product_accesses.values_list('product', flat=True)).distinct()
 
 
@@ -33,8 +38,12 @@ class ProductLessonsViewSet(viewsets.ReadOnlyModelViewSet):
         if not user.product_accesses.filter(product_id=product_id).exists():
             raise PermissionDenied("У вас нет доступа к этому продукту.")
 
-        lesson_viewings_for_user = {viewing.lesson_id: viewing for viewing in LessonViewing.objects.filter(user=user)}
-        self.request._lesson_viewings_for_user = lesson_viewings_for_user
+        try:
+            lesson_viewings_for_user = {viewing.lesson_id: viewing for viewing in LessonViewing.objects.filter(user=user)}
+            self.request._lesson_viewings_for_user = lesson_viewings_for_user
+        except LessonViewing.DoesNotExist:
+            raise ValidationError("Ошибка при получении данных о просмотрах уроков.")
+
         return Lesson.objects.filter(products__id=product_id)
 
 
@@ -44,6 +53,8 @@ class ProductStatisticsViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         total_users = User.objects.count()
+        if total_users == 0:
+            raise ValidationError("Общее количество пользователей равно нулю.")
         annotated_queryset = Product.objects.annotate(
             total_lessons_viewed=Count('lessons__user_viewings', distinct=True),
             total_time_spent=Sum('lessons__user_viewings__viewed_duration'),
