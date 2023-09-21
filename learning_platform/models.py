@@ -29,6 +29,7 @@ class LessonViewing(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lesson_viewings')
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='user_viewings')
     viewed_duration = models.PositiveIntegerField()
+    updated_at = models.DateTimeField(auto_now=True)
 
     @property
     def status(self):
