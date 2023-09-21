@@ -1,7 +1,5 @@
-from django.contrib.auth.models import User
-from django.db.models import Sum
 from rest_framework import serializers
-from .models import Lesson, LessonViewing, Product
+from .models import Lesson, Product
 
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -12,12 +10,16 @@ class LessonSerializer(serializers.ModelSerializer):
         model = Lesson
         fields = ['title', 'status', 'viewing_time']
 
+    def get_viewing_data(self, obj):
+        viewing = next((v for v in obj.user_viewings.all() if v.user == self.context['request'].user), None)
+        return viewing
+
     def get_status(self, obj):
-        viewing = LessonViewing.objects.filter(user=self.context['request'].user, lesson=obj).first()
+        viewing = self.get_viewing_data(obj)
         return viewing.status if viewing else "Не просмотрено"
 
     def get_viewing_time(self, obj):
-        viewing = LessonViewing.objects.filter(user=self.context['request'].user, lesson=obj).first()
+        viewing = self.get_viewing_data(obj)
         return viewing.viewed_duration if viewing else 0
 
 
@@ -30,20 +32,23 @@ class ProductLessonSerializer(serializers.ModelSerializer):
         model = Lesson
         fields = ['title', 'status', 'viewing_time', 'last_viewed']
 
+    def get_viewing_data(self, obj):
+        viewing = next((v for v in obj.user_viewings.all() if v.user == self.context['request'].user), None)
+        return viewing
+
     def get_status(self, obj):
-        viewing = LessonViewing.objects.filter(user=self.context['request'].user, lesson=obj).first()
+        viewing = self.get_viewing_data(obj)
         return viewing.status if viewing else "Не просмотрено"
 
     def get_viewing_time(self, obj):
-        viewing = LessonViewing.objects.filter(user=self.context['request'].user, lesson=obj).first()
+        viewing = self.get_viewing_data(obj)
         return viewing.viewed_duration if viewing else 0
 
     def get_last_viewed(self, obj):
-        viewing = LessonViewing.objects.filter(user=self.context['request'].user, lesson=obj).first()
+        viewing = next((v for v in obj.user_viewings.all() if v.user == self.context['request'].user), None)
         return viewing.updated_at if viewing else None
 
 
-# API для отображения статистики по продуктам
 class ProductStatisticsSerializer(serializers.ModelSerializer):
     total_lessons_viewed = serializers.SerializerMethodField()
     total_time_spent = serializers.SerializerMethodField()
@@ -55,16 +60,15 @@ class ProductStatisticsSerializer(serializers.ModelSerializer):
         fields = ['title', 'total_lessons_viewed', 'total_time_spent', 'total_students', 'purchase_percentage']
 
     def get_total_lessons_viewed(self, obj):
-        return LessonViewing.objects.filter(lesson__products=obj).count()
+        return obj.total_lessons_viewed
 
     def get_total_time_spent(self, obj):
-        return LessonViewing.objects.filter(lesson__products=obj).aggregate(Sum('viewed_duration'))['viewed_duration__sum'] or 0
+        return obj.total_time_spent
 
     def get_total_students(self, obj):
-        return obj.user_accesses.count()
+        return obj.total_students
 
     def get_purchase_percentage(self, obj):
-        total_users = User.objects.count()
-        users_with_access = obj.user_accesses.count()
-        return (users_with_access / total_users) * 100 if total_users else 0
+        return obj.purchase_percentage
+
 
